@@ -1,0 +1,40 @@
+{
+    "name": "nish-framework/nish2",
+    "description": "A small PHP framework with no name. Nish stands for \"Name It Should Have\". In regards to Yoda.",
+    "type": "library",
+    "license": "GNU GENERAL PUBLIC LICENSE v3",
+    "authors": [
+        {
+            "name": "Mehmet Andiç",
+            "email": "mehmet.andic@gmail.com"
+        },
+
+        {
+            "name": "Mustafa Gürgen",
+            "email": "info@mustafagurgen.net"
+        },
+
+        {
+            "name": "Beytullah Gürpınar",
+            "email": "beytullah.gurpinar@gmail.com"
+        }
+    ],
+    "minimum-stability": "beta",
+    "require": {
+        "php": ">=7.3",
+        "monolog/monolog": "2.5.0",
+        "symfony/cache": "5.4.7",
+        "symfony/http-foundation": "5.4.6",
+        "doctrine/orm": "2.12.1",
+        "doctrine/annotations": "1.13.2",
+        "doctrine/dbal": "3.3.5",
+        "symfony/yaml": "5.4.3",
+        "symfony/routing": "5.4.8",
+        "phpmailer/phpmailer": "6.6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nish\\": "src/"
+        }
+    }
+}

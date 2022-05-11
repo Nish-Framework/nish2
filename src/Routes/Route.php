@@ -13,26 +13,43 @@ class Route
     private $path; //The path pattern to match
     private $methods = ['GET', 'POST']; //A required HTTP method or an array of restricted methods
     private $conditions = null; //A condition that should evaluate to true for the route to match
-    private $module = null;
+    private $moduleClassNameOrObj = null;
     private $action;
     private $parameterRequirements = []; //An array of requirements for parameters (regexes)
     private $parameterDefaults = []; //An array of default parameter values
     private $priority = 0;
     private $schemes = []; //A required URI scheme or an array of restricted schemes
+    private $middleware = null; //A callable that will run before action call
 
-    public function __construct($name, $path, callable $action, $module = null, array $methods = ['GET', 'POST'], array $parameterDefaults = [], array $parameterRequirements = [], $conditions = null, array $schemes = [], int $priority = 0)
+    /**
+     * Route constructor.
+     * @param string $name Route name
+     * @param string $path The path pattern to match
+     * @param callable $action Action to run
+     * @param null|string|object $moduleClassNameOrObj
+     * @param array|string[] $methods A required HTTP method or an array of restricted methods
+     * @param null|callable $middleware A callable that will run before action call
+     * @param array $parameterDefaults An array of requirements for parameters (regexes)
+     * @param array $parameterRequirements An array of requirements for parameters (regexes)
+     * @param null $conditions A condition that should evaluate to true for the route to match
+     * @param array $schemes A required URI scheme or an array of restricted schemes
+     * @param int $priority
+     * @throws InvalidTypeException
+     */
+    public function __construct(string $name, string $path, $action, $moduleClassNameOrObj = null, array $methods = ['GET', 'POST'], $middleware = null, array $parameterDefaults = [], array $parameterRequirements = [], $conditions = null, array $schemes = [], int $priority = 0)
     {
 
         $this->name = $name;
         $this->path = $path;
         $this->setAction($action);
-        $this->setModule($module);
+        $this->setModuleClassNameOrObj($moduleClassNameOrObj);
         $this->methods = $methods;
         $this->parameterDefaults = $parameterDefaults;
         $this->parameterRequirements = $parameterRequirements;
         $this->conditions = $conditions;
         $this->schemes = $schemes;
         $this->priority = $priority;
+        $this->setMiddleware($middleware);
     }
 
     /**
@@ -45,10 +62,12 @@ class Route
 
     /**
      * @param string $name
+     * @return $this
      */
-    public function setName(string $name): void
+    public function setName(string $name)
     {
         $this->name = $name;
+        return $this;
     }
 
     /**
@@ -60,11 +79,13 @@ class Route
     }
 
     /**
-     * @param mixed $path
+     * @param string $path
+     * @return $this
      */
-    public function setPath($path): void
+    public function setPath(string $path)
     {
         $this->path = $path;
+        return $this;
     }
 
 
@@ -79,10 +100,12 @@ class Route
 
     /**
      * @param array $methods
+     * @return $this
      */
-    public function setMethods(array $methods): void
+    public function setMethods(array $methods)
     {
         $this->methods = $methods;
+        return $this;
     }
 
     /**
@@ -94,30 +117,41 @@ class Route
     }
 
     /**
-     * @param mixed $conditions
+     * @param string|null $conditions
+     * @return $this
      */
-    public function setConditions(?string $conditions = null): string
+    public function setConditions(?string $conditions = null)
     {
         $this->conditions = $conditions;
+        return $this;
     }
 
     /**
      * @return callable
      */
-    public function getAction(): callable
+    public function getAction()
     {
         return $this->action;
     }
 
     /**
      * @param callable $action
+     * @return $this
+     * @throws InvalidTypeException
      */
-    public function setAction(callable $action): void
+    public function setAction($action)
     {
         if (!is_array($action)) {
             throw new InvalidTypeException('Route action must be a class method! Given ' . CallableHelper::getCallableName($action));
         }
+
+        if (!CallableHelper::isCallable($action)) {
+            throw new InvalidTypeException('Invalid callable parameter: ' . CallableHelper::getCallableName($action));
+        }
+
         $this->action = $action;
+
+        return $this;
     }
 
     /**
@@ -130,10 +164,12 @@ class Route
 
     /**
      * @param array $parameterRequirements
+     * @return $this
      */
-    public function setParameterRequirements(array $parameterRequirements): void
+    public function setParameterRequirements(array $parameterRequirements)
     {
         $this->parameterRequirements = $parameterRequirements;
+        return $this;
     }
 
     /**
@@ -146,10 +182,12 @@ class Route
 
     /**
      * @param array $parameterDefaults
+     * @return $this
      */
-    public function setParameterDefaults(array $parameterDefaults): void
+    public function setParameterDefaults(array $parameterDefaults)
     {
         $this->parameterDefaults = $parameterDefaults;
+        return $this;
     }
 
     /**
@@ -162,10 +200,12 @@ class Route
 
     /**
      * @param int $priority
+     * @return $this
      */
-    public function setPriority(int $priority): void
+    public function setPriority(int $priority)
     {
         $this->priority = $priority;
+        return $this;
     }
 
     /**
@@ -178,29 +218,62 @@ class Route
 
     /**
      * @param array $schemes
+     * @return $this
      */
-    public function setSchemes(array $schemes): void
+    public function setSchemes(array $schemes)
     {
         $this->schemes = $schemes;
+        return $this;
     }
+
 
     /**
      * @return null
      */
-    public function getModule()
+    public function getModuleClassNameOrObj()
     {
-        return $this->module;
+        return $this->moduleClassNameOrObj;
     }
 
     /**
-     * @param null $module
+     * @param $moduleClassNameOrObj
+     * @return $this
+     * @throws InvalidTypeException
      */
-    public function setModule($module): void
+    public function setModuleClassNameOrObj($moduleClassNameOrObj)
     {
-        if ($module != null && !($module instanceof IModule)) {
-            throw new InvalidTypeException('Module must be a type of IModule! Given ' . $module);
+        if ($moduleClassNameOrObj != null && !in_array(IModule::class, class_implements($moduleClassNameOrObj))) {
+            throw new InvalidTypeException('Module must be a type of IModule! Given ' . $moduleClassNameOrObj);
         }
 
-        $this->module = $module;
+        $this->moduleClassNameOrObj = $moduleClassNameOrObj;
+        return $this;
+    }
+
+
+
+
+
+    /**
+     * @return callable|null
+     */
+    public function getMiddleware()
+    {
+        return $this->middleware;
+    }
+
+    /**
+     * @param callable|null $middleware
+     * @return $this
+     * @throws InvalidTypeException
+     */
+    public function setMiddleware($middleware)
+    {
+        if ($middleware != null && !CallableHelper::isCallable($middleware)) {
+            throw new InvalidTypeException('Invalid callable parameter: ' . CallableHelper::getCallableName($middleware));
+        }
+
+        $this->middleware = $middleware;
+        return $this;
     }
 }

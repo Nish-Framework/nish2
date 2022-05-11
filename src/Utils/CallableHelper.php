@@ -1,5 +1,8 @@
 <?php
 namespace Nish\Utils;
+use Nish\Exceptions\InvalidTypeException;
+use Nish\PrimitiveBeast;
+
 /**
  * Class CallableHelper
  *
@@ -7,9 +10,9 @@ namespace Nish\Utils;
  *
  * @package Nish\Utils
  */
-class CallableHelper
+class CallableHelper extends PrimitiveBeast
 {
-    public static function getCallableName(callable $callable) {
+    public static function getCallableName($callable) {
         switch (true) {
             case is_string($callable) && strpos($callable, '::'):
                 return '[static] ' . $callable;
@@ -34,7 +37,7 @@ class CallableHelper
      * @param callable $callable
      * @return array
      */
-    public static function getCallableContext(callable $callable): array
+    public static function getCallableContext($callable): array
     {
         switch (true) {
             case \is_string($callable) && \strpos($callable, '::'):
@@ -83,5 +86,60 @@ class CallableHelper
         }
 
         return $data;
+    }
+
+    /**
+     * Similar to is_callable function of PHP<8
+     *
+     * @param $callable
+     * @return bool
+     */
+    public static function isCallable($callable): bool
+    {
+        if (!is_array($callable)) {
+            return is_callable($callable);
+        } else {
+            if (count($callable) < 2) {
+                return false;
+            }
+
+            return method_exists($callable[0], $callable[1]);
+        }
+    }
+
+    /**
+     * Similar to call_user_func function of PHP<8
+     *
+     * @param $callback
+     * @param mixed ...$args
+     * @return false|mixed
+     */
+    public static function callUserFunc($callback, ...$args)
+    {
+        if (is_array($callback) && is_string($callback[0])) {
+            $className = $callback[0];
+
+            return call_user_func([new $className(), $callback[1]], ...$args);
+        } else {
+            return call_user_func($callback, ...$args);
+        }
+    }
+
+    /**
+     * Similar to call_user_func_array function of PHP<8
+     *
+     * @param $callback
+     * @param array $args
+     * @return false|mixed
+     */
+    public static function callUserFuncArray($callback, array $args)
+    {
+        if (is_array($callback) && is_string($callback[0])) {
+            $className = $callback[0];
+
+            return call_user_func_array([new $className(), $callback[1]], $args);
+        } else {
+            return call_user_func_array($callback, $args);
+        }
     }
 }

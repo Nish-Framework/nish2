@@ -3,7 +3,7 @@
 namespace Nish\Exceptions;
 
 
-class RouteException extends Exception
+class RouteException extends NishException
 {
 
 }

@@ -2,6 +2,7 @@
 namespace Nish\Pipes;
 
 use Nish\Exceptions\InvalidTypeException;
+use Nish\Utils\CallableHelper;
 
 class Pipe
 {
@@ -20,8 +21,12 @@ class Pipe
      * @param array $extraParams
      * @return $this
      */
-    public function push(callable $transformer, bool $receivePrevResult = true, array $extraParams = [])
+    public function push($transformer, bool $receivePrevResult = true, array $extraParams = [])
     {
+
+        if (!CallableHelper::isCallable($transformer)) {
+            throw new InvalidTypeException('Invalid callable parameter: ' . CallableHelper::getCallableName($transformer));
+        }
 
         $this->funcList[] = [
             'transformer' => $transformer,
@@ -85,8 +90,8 @@ class Pipe
 
         if (!empty($runnableObj['extraParams'])) {
             foreach ($runnableObj['extraParams'] as $i => $param) {
-                if (is_callable($param)) {
-                    $runnableObj['extraParams'][$i] = call_user_func($param);
+                if (CallableHelper::isCallable($param)) {
+                    $runnableObj['extraParams'][$i] = CallableHelper::callUserFunc($param);
                 }
             }
 
@@ -94,6 +99,6 @@ class Pipe
         }
 
 
-        return call_user_func_array($runnableObj['func'], $params);
+        return CallableHelper::callUserFuncArray($runnableObj['transformer'], $params);
     }
 }

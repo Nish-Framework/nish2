@@ -380,6 +380,8 @@ class NishApplication extends PrimitiveBeast
                 }
             }
 
+            if ($params === null) $params = [];
+
             (Request::getFromGlobals())->setUrlArgs($params);
 
             $response = $this->runAction($controllerNameOrObject, $actionName, $params);

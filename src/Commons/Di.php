@@ -3,6 +3,7 @@ namespace Nish\Commons;
 
 use Nish\Exceptions\ContainerObjectNotFoundException;
 use Nish\Exceptions\InvalidTypeException;
+use Nish\Utils\CallableHelper;
 
 class Di {
     private static $container = [];
@@ -12,10 +13,14 @@ class Di {
      * @param callable $callable
      * @throws InvalidTypeException
      */
-    public static function put(string $objectKey, callable $callable)
+    public static function put(string $objectKey, $callable)
     {
         if (empty($objectKey)) {
             throw new InvalidTypeException('DI container object key is empty!');
+        }
+
+        if (!CallableHelper::isCallable($callable)) {
+            throw new InvalidTypeException('Invalid callable parameter: ' . CallableHelper::getCallableName($callable));
         }
 
         self::$container[$objectKey] = [
@@ -58,7 +63,7 @@ class Di {
         }
 
         if (self::$container[$objectKey]['val'] == null) {
-            self::$container[$objectKey]['val'] = call_user_func(self::$container[$objectKey]['func']);
+            self::$container[$objectKey]['val'] = CallableHelper::callUserFunc(self::$container[$objectKey]['func']);
         }
 
         return self::$container[$objectKey]['val'];
@@ -67,10 +72,28 @@ class Di {
 
     /**
      * @param string $objectKey
+     * @return mixed|null
+     */
+    public static function getIfExists(string $objectKey)
+    {
+        if (self::has($objectKey)) {
+            if (self::$container[$objectKey]['val'] == null) {
+                self::$container[$objectKey]['val'] = CallableHelper::callUserFunc(self::$container[$objectKey]['func']);
+            }
+
+            return self::$container[$objectKey]['val'];
+        } else {
+            return null;
+        }
+    }
+
+
+    /**
+     * @param string $objectKey
      * @return bool
      */
     public static function has(string $objectKey)
     {
-        return isset(self::$container[$objectKey]);
+        return array_key_exists($objectKey, self::$container);
     }
 }

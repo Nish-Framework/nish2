@@ -71,6 +71,13 @@ class GlobalSettings
         return self::$container[$key];
     }
 
+    public static function getIfExists(string $key)
+    {
+        if (self::has($key)) {
+            return self::$container[$key];
+        }
+    }
+
     /**
      * Get all settings
      * @return array
@@ -86,6 +93,6 @@ class GlobalSettings
      */
     public static function has(string $key)
     {
-        return isset(self::$container[$key]);
+        return array_key_exists($key, self::$container);
     }
 }

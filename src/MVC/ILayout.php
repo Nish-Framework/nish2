@@ -8,7 +8,7 @@ interface ILayout
     public function setLayoutAction();
 
     /**
-     * @return View
+     * @return IView
      */
     public function getView();
     public function getViewFile();

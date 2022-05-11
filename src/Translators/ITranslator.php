@@ -1,13 +1,13 @@
 <?php
 
 
-namespace Nish\Utils;
+namespace Nish\Translators;
 
 
 interface ITranslator
 {
     public function translate(string $key, $defaultTranslation = '');
     public function loadTranslations();
-    public function addResource(array $resource);
+    public function addTranslations(array $translationList);
     public function isEmpty();
 }

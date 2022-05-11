@@ -24,4 +24,5 @@ abstract class Module extends PrimitiveBeast implements IModule
         $this->router = new RouteManager();
         $this->request = Request::getFromGlobals();
     }
+
 }

@@ -6,14 +6,31 @@ trait ModuleTrait
 {
 
     /* @var string */
-    private $viewDir;
+    protected $viewDir;
 
     /* @var bool */
     protected $viewsDisabled = false;
 
     /* @var ILayout */
-    private $layout = null;
+    protected $layout = null;
 
+    private $configured = false;
+
+    /**
+     * @return bool
+     */
+    public function isConfigured(): bool
+    {
+        return $this->configured;
+    }
+
+    /**
+     * @param bool $configured
+     */
+    public function setConfigured(bool $configured): void
+    {
+        $this->configured = $configured;
+    }
 
     /**
      * @return string|null
@@ -31,7 +48,7 @@ trait ModuleTrait
         if ($viewDir == null) {
             $this->viewDir = null;
         } else {
-            $this->viewDir = trim(str_replace("\\", '/', $viewDir), '/');
+            $this->viewDir = rtrim(str_replace("\\", '/', $viewDir), '/');
         }
     }
 
@@ -68,6 +85,11 @@ trait ModuleTrait
     public function setLayout($layout)
     {
         $this->layout = $layout;
+    }
+
+    public function configure()
+    {
+        $this->configured = true;
     }
 
 }

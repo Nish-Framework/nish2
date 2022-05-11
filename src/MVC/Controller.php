@@ -8,8 +8,8 @@ use Nish\Logger\NishLoggerContainer;
 use Nish\PrimitiveBeast;
 use Nish\Routes\RouteManager;
 use Nish\Sessions\SessionManagerContainer;
-use Nish\Utils\ITranslator;
-use Nish\Utils\Translator;
+use Nish\Translators\ITranslator;
+use Nish\Translators\Translator;
 
 class Controller extends PrimitiveBeast implements IController
 {
@@ -39,7 +39,7 @@ class Controller extends PrimitiveBeast implements IController
     /* @var IModule */
     private $module = null;
 
-    /* @var View */
+    /* @var IView */
     protected $view;
 
     /* @var string */
@@ -55,33 +55,25 @@ class Controller extends PrimitiveBeast implements IController
     {
         $this->router = new RouteManager();
 
-        if (Di::has(self::$TRANSLATOR_CONTAINER_KEY)) {
-            $this->translator = Di::get(self::$TRANSLATOR_CONTAINER_KEY);
-        }
+        $this->translator = Di::getIfExists(self::$TRANSLATOR_CONTAINER_KEY);
 
-        if (NishLoggerContainer::exists(self::$LOGGER_CONTAINER_KEY)) {
-            $this->logger = NishLoggerContainer::get(self::$LOGGER_CONTAINER_KEY);
-        }
+        $this->logger = NishLoggerContainer::getIfExists(self::$LOGGER_CONTAINER_KEY);
 
         $this->request = Request::getFromGlobals();
 
-        if (SessionManagerContainer::exists(self::$SESSION_MANAGER_CONTAINER_KEY)) {
-            $this->sessionManager = SessionManagerContainer::get(self::$SESSION_MANAGER_CONTAINER_KEY);
-        }
+        $this->sessionManager = SessionManagerContainer::getIfExists(self::$SESSION_MANAGER_CONTAINER_KEY);
 
-        if (Di::has(self::$EVENT_MANAGER_KEY)) {
-            $this->eventManager = Di::get(self::$EVENT_MANAGER_KEY);
-        }
+        $this->eventManager = Di::getIfExists(self::$EVENT_MANAGER_KEY);
 
         $this->view = new View();
     }
 
     /**
-     * @return View
+     * @return IView
      *
      * @override
      */
-    public function getView(): View
+    public function getView(): IView
     {
         return $this->view;
     }
@@ -109,6 +101,24 @@ class Controller extends PrimitiveBeast implements IController
 
             $viewFile = $callerAction . '.phtml';
         }
+
+        /*if ($viewFile == null) {
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+
+            $callerController = preg_replace('/Controller$/i', '', array_reverse(explode('\\',$backtrace[1]['class']))[0]);
+            $callerAction = preg_replace('/Action$/i', '', $backtrace[1]['function']);
+
+            $modulePart = '';
+            $module = $this->getModule();
+
+            if ($module != null) {
+                if ($module->getViewDir() == null) {
+                    $modulePart = array_reverse(explode('\\', get_class($module)))[0].'/';
+                }
+            }
+
+            $viewFile = $modulePart . $callerController . '/' .$callerAction . '.phtml';
+        }*/
 
         $this->view->setRendered(true);
 
@@ -141,7 +151,7 @@ class Controller extends PrimitiveBeast implements IController
         if ($viewDir == null) {
             $this->viewDir = null;
         } else {
-            $this->viewDir = trim(str_replace("\\", '/', $viewDir), '/');
+            $this->viewDir = rtrim(str_replace("\\", '/', $viewDir), '/');
         }
     }
 
@@ -211,4 +221,13 @@ class Controller extends PrimitiveBeast implements IController
         $this->layout = $layout;
     }
 
+    /**
+     * @override
+     */
+    public function onJustBeforeAllActions(...$args) {}
+
+    /**
+     * @override
+     */
+    public function onJustAfterAllActions(...$args) {}
 }

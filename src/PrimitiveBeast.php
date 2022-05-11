@@ -8,6 +8,7 @@ use Nish\Commons\GlobalSettings;
 use Nish\Events\IEventManager;
 use Nish\Exceptions\InvalidTypeException;
 use Nish\Logger\NishLoggerContainer;
+use Nish\Utils\CallableHelper;
 
 abstract class PrimitiveBeast
 {
@@ -28,7 +29,7 @@ abstract class PrimitiveBeast
      * @param callable $callable
      * @throws InvalidTypeException
      */
-    public function setDefaultTranslator(callable $callable)
+    public static function setDefaultTranslator($callable)
     {
         Di::put(self::DEFAULT_TRANSLATOR_CONTAINER_KEY, $callable);
     }
@@ -45,10 +46,11 @@ abstract class PrimitiveBeast
 
     /**
      * @return Logger\Logger
+     * @throws Exceptions\ContainerObjectNotFoundException
      */
     public static function getDefaultLogger()
     {
-        return NishLoggerContainer::get(NishLoggerContainer::DEFAULT_LOGGER_CONTAINER_KEY);
+        return self::getLogger();
     }
 
     /**
@@ -61,22 +63,28 @@ abstract class PrimitiveBeast
     }
 
     /**
-     * @return IEventManager | null
+     * IEventManager | null
+     * @throws Exceptions\ContainerObjectNotFoundException
      */
     public static function getDefaultEventManager()
     {
         return Di::get(self::DEFAULT_EVENT_MANAGER_CONTAINER_KEY);
     }
 
-    public static function setDefaultEventManager(callable $eventManagerSetter)
+    /**
+     * @param callable $eventManagerSetter
+     * @throws InvalidTypeException
+     */
+    public static function setDefaultEventManager($eventManagerSetter)
     {
         Di::put(self::DEFAULT_EVENT_MANAGER_CONTAINER_KEY, $eventManagerSetter);
+
     }
 
     /**
      * @return bool
      */
-    public static function isPHP8Available()
+    public static function isPHP8()
     {
         return phpversion() >= 8;
     }
@@ -90,16 +98,16 @@ abstract class PrimitiveBeast
      * @throws Exceptions\ContainerObjectNotFoundException
      * @throws InvalidTypeException
      */
-    public function memoizedCall(callable $callable, ?array $args = null, int $expiresAfter = 3600, $cacheContainerKey = NishCacherContainer::DEFAULT_CACHER_CONTAINER_KEY)
+    public function memoizedCall($callable, ?array $args = null, int $expiresAfter = 3600, $cacheContainerKey = NishCacherContainer::DEFAULT_CACHER_CONTAINER_KEY)
     {
-        if (!is_callable($callable, null, $callableName)) {
-            throw new InvalidTypeException('Invalid callable '. $callableName);
+        if (!CallableHelper::isCallable($callable)) {
+            throw new InvalidTypeException('Invalid callable parameter: ' . CallableHelper::getCallableName($callable));
         }
 
         if (empty($args)) $args = [];
 
         if (!NishCacherContainer::exists()) {
-            $result = call_user_func_array($callable, $args);
+            $result = CallableHelper::callUserFuncArray($callable, $args);
         } else {
             $cacher = NishCacherContainer::get($cacheContainerKey);
 
@@ -110,7 +118,7 @@ abstract class PrimitiveBeast
             $result = $cacher->get($key, function (\Symfony\Contracts\Cache\ItemInterface $item) use ($callable, $args, $expiresAfter) {
                 $item->expiresAfter($expiresAfter);
 
-                return call_user_func_array($callable, $args);
+                return CallableHelper::callUserFuncArray($callable, $args);
             });
         }
 
@@ -145,9 +153,12 @@ abstract class PrimitiveBeast
      * @param mixed ...$args
      * @throws Exceptions\ContainerObjectNotFoundException
      */
-    public static function callResourceNotFoundAction(...$args)
+    public static function callResourceNotFoundAction(\Exception $e)
     {
-        call_user_func(self::getResourceNotFoundAction(), $args);
+        if (GlobalSettings::has(GlobalSettings::SETTING_RESOURCE_NOT_FOUND_ACTION)) {
+            call_user_func(self::getResourceNotFoundAction(), $e);
+        }
+
     }
 
     /**
@@ -160,11 +171,15 @@ abstract class PrimitiveBeast
     }
 
     /**
-     * @param mixed ...$args
+     * @param \Exception $e
      * @throws Exceptions\ContainerObjectNotFoundException
      */
-    public static function callUnexpectedBehaviourAction(...$args)
+    public static function callUnexpectedBehaviourAction(\Exception $e)
     {
-        call_user_func(self::getUnexpectedBehaviourAction(), $args);
+        if (GlobalSettings::has(GlobalSettings::SETTING_UNEXPECTED_BEHAVIOUR_ACTION)) {
+            call_user_func(self::getUnexpectedBehaviourAction(), $e);
+        }
     }
+
+
 }

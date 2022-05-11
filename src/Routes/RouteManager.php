@@ -4,9 +4,9 @@ namespace Nish\Routes;
 
 
 use Nish\Exceptions\InvalidTypeException;
+use Nish\Exceptions\ResourceNotFoundException;
 use Nish\Exceptions\RouteException;
 use Nish\Http\Request;
-use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\RouteCollection;
@@ -23,6 +23,24 @@ class RouteManager
 
     /* @var UrlMatcher $matcher */
     private static $matcher;
+
+    private static $basePath = '';
+
+    /**
+     * @return string
+     */
+    public function getBasePath(): string
+    {
+        return self::$basePath;
+    }
+
+    /**
+     * @param string $basePath
+     */
+    public function setBasePath(string $basePath): void
+    {
+        self::$basePath = $basePath;
+    }
 
     /**
      * @param Route $route
@@ -65,6 +83,7 @@ class RouteManager
         return self::$routeList;
     }
 
+
     public function boot()
     {
         self::$routeCollection = new RouteCollection();
@@ -88,6 +107,7 @@ class RouteManager
         }
 
         self::$context = new RequestContext();
+
         self::$context->fromRequest(Request::getFromGlobals());
         self::$matcher = new UrlMatcher(self::$routeCollection, self::$context);
     }
@@ -95,24 +115,34 @@ class RouteManager
     /**
      * @param $path
      * @return array
-     * @throws \Nish\Exceptions\ResourceNotFoundException
+     * @throws ResourceNotFoundException
      */
     public function matchPath($path)
     {
         try {
             return self::$matcher->match($path);
-        } catch (ResourceNotFoundException $e) {
-            throw new \Nish\Exceptions\ResourceNotFoundException($e->getMessage());
+        } catch (\Exception $e) {
+            throw new ResourceNotFoundException($e->getMessage());
         }
     }
 
     /**
-     * Directs to route path
+     * Directs to given url
+     *
+     * @param $url
+     */
+    public function route($url)
+    {
+        header('Location: ' . $url);
+        exit();
+    }
+
+    /**
      *
      * @param $routeName
      * @throws RouteException
      */
-    public function route($routeName)
+    public function routeByName($routeName)
     {
         /* @var Route|null $route */
         $route = self::getRouteByName($routeName);
@@ -121,8 +151,7 @@ class RouteManager
             throw new RouteException('Route not found with name: ' . $routeName);
         }
 
-        header('Location: ' . $route->getPath());
-        exit();
+        $this->route( self::$basePath.$route->getPath());
     }
 
     /**
@@ -144,5 +173,8 @@ class RouteManager
         return $route->getPath();
     }
 
-    public static function a() {}
+    public function generate($routeName)
+    {
+        return $this->getPath($routeName);
+    }
 }

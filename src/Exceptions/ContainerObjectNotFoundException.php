@@ -3,7 +3,7 @@
 namespace Nish\Exceptions;
 
 
-class ContainerObjectNotFoundException extends Exception
+class ContainerObjectNotFoundException extends NishException
 {
 
 }

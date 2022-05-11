@@ -41,6 +41,8 @@ class NishLoggerContainer
                         $logger->pushProcessor($processor);
                     }
                 }
+
+                return $logger;
             }
         );
     }
@@ -68,6 +70,20 @@ class NishLoggerContainer
     public static function get(string $containerKey = self::DEFAULT_LOGGER_CONTAINER_KEY): Logger
     {
         return Di::get($containerKey);
+    }
+
+    /**
+     * @param string $containerKey
+     * @return Logger|null
+     * @throws \Nish\Exceptions\ContainerObjectNotFoundException
+     */
+    public static function getIfExists(string $containerKey = self::DEFAULT_LOGGER_CONTAINER_KEY)
+    {
+        if (Di::has($containerKey)) {
+            return Di::get($containerKey);
+        } else {
+            return null;
+        }
     }
 
     /**

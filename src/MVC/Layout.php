@@ -9,8 +9,8 @@ use Nish\Logger\NishLoggerContainer;
 use Nish\PrimitiveBeast;
 use Nish\Routes\RouteManager;
 use Nish\Sessions\SessionManagerContainer;
-use Nish\Utils\ITranslator;
-use Nish\Utils\Translator;
+use Nish\Translators\ITranslator;
+use Nish\Translators\Translator;
 
 abstract class Layout extends PrimitiveBeast implements ILayout
 {
@@ -43,7 +43,7 @@ abstract class Layout extends PrimitiveBeast implements ILayout
     /* @var IModule */
     private $module = null;
 
-    /* @var View */
+    /* @var IView */
     protected $view;
 
     /* @var string */
@@ -56,29 +56,21 @@ abstract class Layout extends PrimitiveBeast implements ILayout
     {
         $this->router = new RouteManager();
 
-        if (Di::has(self::$TRANSLATOR_CONTAINER_KEY)) {
-            $this->translator = Di::get(self::$TRANSLATOR_CONTAINER_KEY);
-        }
+        $this->translator = Di::getIfExists(self::$TRANSLATOR_CONTAINER_KEY);
 
-        if (NishLoggerContainer::exists(self::$LOGGER_CONTAINER_KEY)) {
-            $this->logger = NishLoggerContainer::get(self::$LOGGER_CONTAINER_KEY);
-        }
+        $this->logger = NishLoggerContainer::getIfExists(self::$LOGGER_CONTAINER_KEY);
 
         $this->request = Request::getFromGlobals();
 
-        if (SessionManagerContainer::exists(self::$SESSION_MANAGER_CONTAINER_KEY)) {
-            $this->sessionManager = SessionManagerContainer::get(self::$SESSION_MANAGER_CONTAINER_KEY);
-        }
+        $this->sessionManager = SessionManagerContainer::getIfExists(self::$SESSION_MANAGER_CONTAINER_KEY);
 
-        if (Di::has(self::$EVENT_MANAGER_KEY)) {
-            $this->eventManager = Di::get(self::$EVENT_MANAGER_KEY);
-        }
+        $this->eventManager = Di::getIfExists(self::$EVENT_MANAGER_KEY);
 
         $this->view = new View();
     }
 
     /**
-     * @return View
+     * @return IView
      */
     public function getView()
     {

@@ -9,10 +9,10 @@ use Nish\Logger\NishLoggerContainer;
 use Nish\PrimitiveBeast;
 use Nish\Routes\RouteManager;
 use Nish\Sessions\SessionManagerContainer;
-use Nish\Utils\ITranslator;
-use Nish\Utils\Translator;
+use Nish\Translators\ITranslator;
+use Nish\Translators\Translator;
 
-class View extends PrimitiveBeast
+class View extends PrimitiveBeast implements IView
 {
     public static $TRANSLATOR_CONTAINER_KEY = Translator::DEFAULT_TRANSLATOR_CONTAINER_KEY;
     public static $SESSION_MANAGER_CONTAINER_KEY = SessionManagerContainer::DEFAULT_MANAGER_CONTAINER_KEY;
@@ -44,23 +44,18 @@ class View extends PrimitiveBeast
 
         $this->router = new RouteManager();
 
-        if (Di::has(self::$TRANSLATOR_CONTAINER_KEY)) {
-            $this->translator = Di::get(self::$TRANSLATOR_CONTAINER_KEY);
-        }
+        $this->translator = Di::getIfExists(self::$TRANSLATOR_CONTAINER_KEY);
 
-        if (NishLoggerContainer::exists(self::$LOGGER_CONTAINER_KEY)) {
-            $this->logger = NishLoggerContainer::get(self::$LOGGER_CONTAINER_KEY);
-        }
+        $this->logger = NishLoggerContainer::getIfExists(self::$LOGGER_CONTAINER_KEY);
 
         $this->request = Request::getFromGlobals();
 
-        if (SessionManagerContainer::exists(self::$SESSION_MANAGER_CONTAINER_KEY)) {
-            $this->sessionManager = SessionManagerContainer::get(self::$SESSION_MANAGER_CONTAINER_KEY);
-        }
+        $this->sessionManager = SessionManagerContainer::getIfExists(self::$SESSION_MANAGER_CONTAINER_KEY);
 
     }
 
     /**
+     * @override
      * @return mixed
      */
     public function getViewDir()
@@ -69,6 +64,7 @@ class View extends PrimitiveBeast
     }
 
     /**
+     * @override
      * @param mixed $viewDir
      */
     public function setViewDir($viewDir): void
@@ -78,6 +74,7 @@ class View extends PrimitiveBeast
 
 
     /**
+     * @override
      * @return bool
      */
     public function isRendered(): bool
@@ -86,6 +83,7 @@ class View extends PrimitiveBeast
     }
 
     /**
+     * @override
      * @param bool $rendered
      */
     public function setRendered(bool $rendered): void
@@ -94,6 +92,7 @@ class View extends PrimitiveBeast
     }
 
     /**
+     * @override
      * @param string $file
      * @return false|string
      */

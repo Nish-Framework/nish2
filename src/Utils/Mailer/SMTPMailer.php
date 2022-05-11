@@ -2,95 +2,118 @@
 namespace Nish\Utils\Mailer;
 
 
+use Nish\Exceptions\MailerException;
 use Nish\PrimitiveBeast;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 
 class SMTPMailer extends PrimitiveBeast implements IMailer
 {
+    /**
+     * @param $host
+     * @param $username
+     * @param $password
+     * @param array|null $to
+     * @param array|null $bcc
+     * @param array|null $cc
+     * @param null $fromAddr
+     * @param string $subject
+     * @param string $htmlBody
+     * @param string $textBody
+     * @param int $port
+     * @param string $smtpSecure
+     * @param null $replyTo
+     * @param array|null $attachments
+     * @throws MailerException
+     */
     public static function sendSMTPMail($host, $username, $password, ?array $to = null, ?array $bcc = null, ?array $cc = null, $fromAddr = null, $subject = '', $htmlBody = '', $textBody = '', $port = 587, $smtpSecure = 'tls', $replyTo = null, ?array $attachments = null)
     {
-        $mailer = new PHPMailer(true);
-        $mailer->isHTML(true);
-        $mailer->isSMTP();
-        $mailer->Encoding = PHPMailer::ENCODING_BASE64;
-        $mailer->CharSet = PHPMailer::CHARSET_UTF8;
+        try {
+            $mailer = new PHPMailer(true);
+            $mailer->isHTML(true);
+            $mailer->isSMTP();
+            $mailer->Encoding = PHPMailer::ENCODING_BASE64;
+            $mailer->CharSet = PHPMailer::CHARSET_UTF8;
 
 
-        if (self::isAppInDebugMode()) {
-            $mailer->SMTPDebug = SMTP::DEBUG_SERVER;
+            if (self::isAppInDebugMode()) {
+                $mailer->SMTPDebug = SMTP::DEBUG_SERVER;
 
-            $mailer->Debugoutput = function ($message, $debugLevel) {
-                $logger = self::getDefaultLogger();
+                $mailer->Debugoutput = function ($message, $debugLevel) {
+                    $logger = self::getDefaultLogger();
 
-                $logger->debug($message);
-            };
-        } else {
-            $mailer->SMTPDebug = SMTP::DEBUG_OFF;
-            $mailer->Debugoutput;
-        }
-
-
-        $mailer->SMTPAuth = true;
-        $mailer->Host = $host;
-        $mailer->Port = $port;
-        $mailer->Username = $username;
-        $mailer->Password = $password;
-
-        if ($smtpSecure == 'tls') {
-            $mailer->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        } elseif ($smtpSecure == 'ssl') {
-            $mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        }
-
-        if ($fromAddr) {
-            $mailer->setFrom($fromAddr);
-        }
-
-        if ($replyTo) {
-            $mailer->addReplyTo($replyTo);
-        }
-
-        if (!empty($to)) {
-            foreach ($to as $addr) {
-                $mailer->addAddress($addr);
+                    $logger->debug($message);
+                };
+            } else {
+                $mailer->SMTPDebug = SMTP::DEBUG_OFF;
+                $mailer->Debugoutput;
             }
-        }
 
-        if (!empty($bcc)) {
-            foreach ($bcc as $addr) {
-                $mailer->addBCC($addr);
+
+            $mailer->SMTPAuth = true;
+            $mailer->Host = $host;
+            $mailer->Port = $port;
+            $mailer->Username = $username;
+            $mailer->Password = $password;
+
+            if ($smtpSecure == 'tls') {
+                $mailer->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            } elseif ($smtpSecure == 'ssl') {
+                $mailer->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
             }
-        }
 
-        if (!empty($cc)) {
-            foreach ($cc as $addr) {
-                $mailer->addCC($addr);
+            if ($fromAddr) {
+                $mailer->setFrom($fromAddr);
             }
-        }
 
-        if (empty($subject)) {
-            $subject = 'Untitled';
-        }
+            if ($replyTo) {
+                $mailer->addReplyTo($replyTo);
+            }
 
-        $mailer->Subject = $subject;
-
-        $mailer->Body = $htmlBody;
-
-        if ($textBody) {
-            $mailer->AltBody = $textBody;
-        }
-
-        if (!empty($attachments)) {
-            foreach ($attachments as $i => $v) {
-                if (is_numeric($i)) {
-                    $mailer->addAttachment($v);
-                } else {
-                    $mailer->addAttachment($v, $i);
+            if (!empty($to)) {
+                foreach ($to as $addr) {
+                    $mailer->addAddress($addr);
                 }
             }
+
+            if (!empty($bcc)) {
+                foreach ($bcc as $addr) {
+                    $mailer->addBCC($addr);
+                }
+            }
+
+            if (!empty($cc)) {
+                foreach ($cc as $addr) {
+                    $mailer->addCC($addr);
+                }
+            }
+
+            if (empty($subject)) {
+                $subject = 'Untitled';
+            }
+
+            $mailer->Subject = $subject;
+
+            $mailer->Body = $htmlBody;
+
+            if ($textBody) {
+                $mailer->AltBody = $textBody;
+            }
+
+            if (!empty($attachments)) {
+                foreach ($attachments as $i => $v) {
+                    if (is_numeric($i)) {
+                        $mailer->addAttachment($v);
+                    } else {
+                        $mailer->addAttachment($v, $i);
+                    }
+                }
+            }
+
+            $mailer->send();
+        } catch (\Exception $e) {
+            throw new MailerException($e->getMessage(), $e->getCode());
         }
 
-        $mailer->send();
     }
 }

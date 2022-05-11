@@ -4,6 +4,8 @@
 namespace Nish;
 
 
+use Nish\Annotations\IAnnotation;
+use Nish\Annotations\OnAfterAction;
 use Nish\Commons\Di;
 use Nish\Commons\GlobalSettings;
 use Nish\Events\EventManager;
@@ -17,9 +19,12 @@ use Nish\Logger\NishLoggerContainer;
 use Nish\MVC\IController;
 use Nish\MVC\IModule;
 use Nish\MVC\ModuleTrait;
+use Nish\Pipes\Pipe;
 use Nish\Routes\RouteManager;
 use Nish\Sessions\SessionManagerContainer;
+use Nish\Utils\CallableHelper;
 use Nish\Utils\DateTime\NishDateTime;
+use ReflectionAttribute;
 
 class NishApplication extends PrimitiveBeast
 {
@@ -28,22 +33,92 @@ class NishApplication extends PrimitiveBeast
     /* @var IModule */
     private $module = null;
 
+    /* @var Pipe */
+    private $beforeActionPipe;
+
+    /* @var Pipe */
+    private $afterActionPipe;
+
     public function __construct()
     {
 
     }
 
-    /**
-     * @param string $controllerClass
-     * @param string $actionMethod
-     * @param array|null $params
-     * @return false|string
-     */
-    private function runAction(string $controllerClass, string $actionMethod, ?array $params = null)
+    private function retrieveAnnotationsForPhp8(IController $controller, string $actionMethod)
+    {
+        $classReflector = new \ReflectionClass($controller);
+        $methodReflector = new \ReflectionMethod($controller, $actionMethod);
+
+        $classAttributes = $classReflector->getAttributes(IAnnotation::class, ReflectionAttribute::IS_INSTANCEOF);
+        $methodAttributes = $methodReflector->getAttributes(IAnnotation::class, ReflectionAttribute::IS_INSTANCEOF);
+
+        $this->afterActionPipe->push([$controller, 'onJustAfterAllActions'], true);
+
+        /* @var $attr */
+        foreach ($classAttributes as $attr) {
+            $obj = $attr->newInstance();
+
+            if ($obj instanceof OnAfterAction) {
+                foreach ($attr->getArguments() as $callableArg) {
+                    if (is_array($callableArg) && is_string($callableArg[0]) && is_array($callableArg[2])) {
+                        $classObj = new $callableArg[0]($callableArg[2]);
+
+                        $callableArg = [$classObj, $callableArg[1]];
+                    }
+                    $this->afterActionPipe->push($callableArg, true );
+                }
+            } else {
+                $this->beforeActionPipe->push([$obj, 'run'], true);
+            }
+        }
+
+        /* @var $attr */
+        foreach ($methodAttributes as $attr) {
+            $obj = $attr->newInstance();
+
+            if ($obj instanceof OnAfterAction) {
+                foreach ($attr->getArguments() as $callableArg) {
+                    if (is_array($callableArg) && count($callableArg) >= 3 && is_string($callableArg[0]) && is_array($callableArg[2])) {
+                        $classObj = new $callableArg[0]($callableArg[2]);
+
+                        $callableArg = [$classObj, $callableArg[1]];
+                    }
+
+                    $this->afterActionPipe->push($callableArg, true );
+                }
+            } else {
+                $this->beforeActionPipe->push([$obj, 'run'], true);
+            }
+        }
+
+        $this->beforeActionPipe->push([$controller, 'onJustBeforeAllActions'], true);
+    }
+
+    private function retrieveAnnotationsForPhp7(IController $controller, string $actionMethod)
     {
 
-        /* @var IController $controller */
-        $controller = new $controllerClass();
+    }
+
+    private function retrieveAnnotations(IController $controller, string $actionMethod)
+    {
+        $this->beforeActionPipe = new Pipe();
+        $this->afterActionPipe = new Pipe();
+
+        if (self::isPHP8()) {
+            $this->retrieveAnnotationsForPhp8($controller, $actionMethod);
+        } else {
+            $this->retrieveAnnotationsForPhp7($controller, $actionMethod);
+        }
+    }
+
+    /**
+     * @param IController $controller
+     * @param string $actionMethod
+     * @param array|null $params
+     * @return false|string|null
+     */
+    private function runAction($controller, string $actionMethod, ?array $params = null)
+    {
 
         $controller->setModule($this->module);
 
@@ -53,7 +128,22 @@ class NishApplication extends PrimitiveBeast
 
         ob_start();
 
-        call_user_func_array([$controller, $actionMethod], $params);
+        $this->retrieveAnnotations($controller, $actionMethod);
+
+        $beforeAllResult = $this->beforeActionPipe->flush($params);
+
+        if (isset($beforeAllResult)) {
+            $params[] = $beforeAllResult;
+        }
+
+        $actionCallResult = call_user_func_array([$controller, $actionMethod], $params);
+
+        $afterAllCallbackParams = [];
+        if (isset($actionCallResult)) {
+            $afterAllCallbackParams[] = $actionCallResult;
+        }
+
+        $this->afterActionPipe->flush($afterAllCallbackParams);
 
         // if view is not disabled and not rendered, render it
         if (!$controller->isViewDisabled() && !$controller->getView()->isRendered()) {
@@ -62,7 +152,6 @@ class NishApplication extends PrimitiveBeast
 
             if (empty($controller->getViewDir())) {
                 $viewDir = '';
-
                 if ($this->module != null) {
                     if (!empty($this->module->getViewDir())) {
                         $viewDir = $this->module->getViewDir().'/';
@@ -71,11 +160,12 @@ class NishApplication extends PrimitiveBeast
                     }
                 }
 
-                /*if (empty($viewDir)) {
-                    $viewDir = $this->getViewDir();
-                }*/
+                if (empty($viewDir)) {
+                    $viewDir = $this->getViewDir().'/';
+                }
 
-                $callerController = preg_replace('/Controller$/i', '', array_reverse(explode('\\',$controllerClass))[0]);
+
+                $callerController = preg_replace('/Controller$/i', '', array_reverse(explode('\\',get_class($controller)))[0]);
 
                 $viewDir .= $callerController;
 
@@ -103,6 +193,8 @@ class NishApplication extends PrimitiveBeast
                 if ($layoutView != null) {
                     $layoutView->controllerOutput = $layout->getControllerOutput();
                     return $layoutView->render($layout->getViewFile());
+                } else {
+                    return null;
                 }
             } else {
                 return $actionOutput;
@@ -116,7 +208,7 @@ class NishApplication extends PrimitiveBeast
      * @throws Exceptions\ContainerObjectNotFoundException
      * @throws InvalidTypeException
      */
-    protected function configure()
+    public function configure()
     {
         // set default log level
         if (!GlobalSettings::has(GlobalSettings::SETTING_APP_LOG_LEVEL)) {
@@ -154,23 +246,26 @@ class NishApplication extends PrimitiveBeast
         }
 
         // configure default not found action
-        if (!self::getResourceNotFoundAction()) {
+        if (!GlobalSettings::has(GlobalSettings::SETTING_RESOURCE_NOT_FOUND_ACTION)) {
+
             self::setResourceNotFoundAction(function () {
                 Response::sendResponse('<h1>404 - Not Found</h1>', Response::HTTP_NOT_FOUND);
             });
         }
 
         // configure default unexpected exception behaviour
-        if (!self::getUnexpectedBehaviourAction()) {
+        if (!GlobalSettings::has(GlobalSettings::SETTING_UNEXPECTED_BEHAVIOUR_ACTION)) {
             self::setUnexpectedBehaviourAction(function (\Exception $e) {
                 $logger = self::getDefaultLogger();
 
                 if ($logger) {
-                    $logger->error('Exception: '.$e->getMessage().', Trace: '.$e->getTraceAsString());
+                    $logger->error('NishException: '.$e->getMessage().', Trace: '.$e->getTraceAsString());
                 }
 
                 Response::sendResponse('<h1>500 - Interval Server Error</h1>', Response::HTTP_INTERNAL_SERVER_ERROR);
             });
+
+            $this->configured = true;
         }
 
         //configure default session manager
@@ -238,6 +333,74 @@ class NishApplication extends PrimitiveBeast
         GlobalSettings::put(GlobalSettings::SETTING_UNEXPECTED_BEHAVIOUR_ACTION, $callable);
     }
 
+    /**
+     * @param $controllerNameOrObject
+     * @param $actionName
+     * @param array|null $params
+     * @param null $moduleNameOrObject
+     * @throws Exceptions\ContainerObjectNotFoundException
+     */
+    public function runControllerAction($controllerNameOrObject, $actionName, ?array $params = null, $moduleNameOrObject = null)
+    {
+        try {
+            if (empty($controllerNameOrObject) || empty($actionName)) {
+                throw new ResourceNotFoundException('Action or controller not found!');
+            }
+
+            if (!$this->isConfigured()) {
+                $this->configure();
+            }
+
+            if (is_string($controllerNameOrObject)) {
+                $controllerNameOrObject = new $controllerNameOrObject();
+            }
+
+            if (!($controllerNameOrObject instanceof IController)) {
+                throw new InvalidTypeException('Controller is required to be type of IController!');
+            }
+
+            if (!empty($moduleNameOrObject)) {
+
+                if (is_string($moduleNameOrObject)) {
+                    $this->module = new $moduleNameOrObject();
+                } else {
+                    $this->module = $moduleNameOrObject;
+                }
+
+                if (!$this->module->isConfigured()) {
+                    $this->module->configure();
+                }
+
+                if ($this->areViewsDisabled()) {
+                    $this->module->disableViews();
+                }
+
+                if ($this->module->getLayout() == null) {
+                    $this->module->setLayout($this->getLayout());
+                }
+            }
+
+            (Request::getFromGlobals())->setUrlArgs($params);
+
+            $response = $this->runAction($controllerNameOrObject, $actionName, $params);
+
+            $eventManager = self::getDefaultEventManager();
+
+            if ($eventManager instanceof IEventManager) {
+                echo $eventManager->trigger(EventManager::ON_BEFORE_SEND_RESPONSE, null, $response);
+            } else {
+                echo $response;
+            }
+        } catch (ResourceNotFoundException $e) {
+            self::callResourceNotFoundAction($e);
+        } catch (\Exception $e) {
+            self::callUnexpectedBehaviourAction($e);
+        }
+    }
+
+    /**
+     * Handles requests
+     */
     public function run()
     {
         try {
@@ -254,50 +417,46 @@ class NishApplication extends PrimitiveBeast
             $routeManager = new RouteManager();
             $request = Request::getFromGlobals();
 
-            $matchedAttributes = $routeManager->matchPath($request->getPathInfo());
+            $pathInfo = preg_replace('/^'.str_replace("/","\\/", $routeManager->getBasePath()).'/', '', $request->getPathInfo());
+
+            $actionParams = [];
+
+            try {
+                $matchedAttributes = $routeManager->matchPath($pathInfo);
+            } catch (\Exception $e) {}
+
+            $module = null;
 
             // call closure or throw 404 status
             if( is_array($matchedAttributes) && !empty($matchedAttributes['_route'])) {
-
                 $route = $routeManager->getRouteByName($matchedAttributes['_route']);
 
-                $module = $route->getModule();
+                $middlewareReturn = null;
+
+                if ($route->getMiddleware() != null) {
+                    $middlewareReturn = CallableHelper::callUserFunc($route->getMiddleware());
+                }
+
+                $module = $route->getModuleClassNameOrObj();
                 $controller = $route->getAction()[0];
                 $action = $route->getAction()[1];
 
-                unset($matchedAttributes['_route']);
+                $actionParams[0] = $matchedAttributes;
+
+                unset($actionParams[0]['_route']);
+
+                if ($middlewareReturn !== null) {
+                    $actionParams[1] = $middlewareReturn;
+                }
             }
             /** END: Match Route **/
 
-            if (!empty($module)) {
-                $this->module = new $module();
-
-                if ($this->areViewsDisabled()) {
-                    $this->module->disableViews();
-                }
-
-                if ($this->module->getLayout() == null) {
-                    $this->module->setLayout($this->getLayout());
-                }
-
-                $this->module->configure();
-            }
-
-            $this->configure();
-
             if (empty($controller) || empty($action)) {
-                throw new ResourceNotFoundException('Action or controller is null');
+                throw new ResourceNotFoundException('Action or controller not found!');
             }
 
-            $response = $this->runAction($controller, $action, $matchedAttributes);
 
-            $eventManager = self::getDefaultEventManager();
-
-            if ($eventManager instanceof IEventManager) {
-                echo $eventManager->trigger(EventManager::ON_BEFORE_SEND_RESPONSE, null, $response);
-            } else {
-                echo $response;
-            }
+            $this->runControllerAction($controller, $action, $actionParams, $module);
 
         } catch (ResourceNotFoundException $e) {
             self::callResourceNotFoundAction($e);

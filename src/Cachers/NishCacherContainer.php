@@ -11,17 +11,17 @@ class NishCacherContainer
     public const DEFAULT_CACHER_CONTAINER_KEY = '__defaultCacher__';
 
     /**
-     * @param callable $configure
-     * @param string $containerName
+     * @param callable $configurationCallable
+     * @param string $containerKey
      * @throws InvalidTypeException
      */
-    public static function configure(callable $configure, $containerName = self::DEFAULT_CACHER_CONTAINER_KEY)
+    public static function configure($configurationCallable, $containerKey = self::DEFAULT_CACHER_CONTAINER_KEY)
     {
-        if (empty($channel) || empty($containerKey)) {
+        if (empty($containerKey)) {
             throw new InvalidTypeException('Empty cacher container key!');
         }
 
-        Di::put($containerName, $configure);
+        Di::put($containerKey, $configurationCallable);
     }
 
     /**

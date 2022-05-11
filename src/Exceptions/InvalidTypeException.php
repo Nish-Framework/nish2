@@ -3,7 +3,7 @@
 namespace Nish\Exceptions;
 
 
-class InvalidTypeException extends Exception
+class InvalidTypeException extends NishException
 {
 
 }

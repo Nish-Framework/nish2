@@ -5,7 +5,7 @@ namespace Nish\Commons;
 class Environment
 {
     public const ENV_DEV = 'dev';
-    public const ENV_TEST = 'test';
+    public const ENV_TEST = 'Sample';
     public const ENV_PROD = 'prod';
 
     private static $envName = self::ENV_DEV;

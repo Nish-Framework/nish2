@@ -1,7 +1,8 @@
 <?php
-namespace Nish\Utils;
+namespace Nish\Translators;
 
 use Nish\PrimitiveBeast;
+use Nish\Utils\CallableHelper;
 
 class Translator extends PrimitiveBeast implements ITranslator
 {
@@ -9,14 +10,14 @@ class Translator extends PrimitiveBeast implements ITranslator
     protected $translationLocale;
     protected $namespace;
 
-    protected $messages = [];
+    protected $translations = [];
 
     protected $cacheFile = null;
     protected $cacheDir = null;
 
     protected $notFoundCallback = null;
 
-    public function __construct(string $locale, $cacheDir = null, $defaultLocale = 'en', $namespace = 'website', ?callable $notFoundCallback = null)
+    public function __construct(string $locale, $cacheDir = null, $defaultLocale = 'en', $namespace = 'default', ?callable $notFoundCallback = null)
     {
         $this->defaultLocale = $defaultLocale;
         $this->translationLocale = $locale;
@@ -34,40 +35,40 @@ class Translator extends PrimitiveBeast implements ITranslator
             $this->cacheFile = $this->namespace.'_'.$this->translationLocale.'.php';
 
             if (is_file($this->cacheDir.'/'.$this->cacheFile)) {
-                $this->messages = require_once($this->cacheDir.'/'.$this->cacheFile);
+                $this->translations = require_once($this->cacheDir.'/'.$this->cacheFile);
             }
         }
     }
 
     public function translate(string $key, $defaultTranslation = '')
     {
-        if (isset($this->messages[$key])) {
-            return $this->messages[$key];
+        if (isset($this->translations[$key])) {
+            return $this->translations[$key];
         }
 
         if (empty($defaultTranslation)) {
             $defaultTranslation = $key;
         }
 
-        if (is_callable($this->notFoundCallback)) {
-            call_user_func_array($this->notFoundCallback, [$this->namespace, $key, $defaultTranslation]);
+        if (CallableHelper::isCallable($this->notFoundCallback)) {
+            CallableHelper::callUserFuncArray($this->notFoundCallback, [$this->namespace, $key, $defaultTranslation]);
         }
 
         return $defaultTranslation;
     }
 
-    public function addResource(array $resource)
+    public function addTranslations(array $translationList)
     {
-        $this->messages = array_merge($this->messages, $resource);
+        $this->translations = array_merge($this->translations, $translationList);
 
         if ($this->cacheDir) {
-            file_put_contents($this->cacheDir.'/'.$this->cacheFile, "<?php \n return ".var_export($this->messages, true).';');
+            file_put_contents($this->cacheDir.'/'.$this->cacheFile, "<?php \n return ".var_export($this->translations, true).';');
         }
     }
 
     public function isEmpty()
     {
-        return empty($this->messages);
+        return empty($this->translations);
     }
 
 

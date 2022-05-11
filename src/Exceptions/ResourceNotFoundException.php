@@ -3,7 +3,7 @@
 namespace Nish\Exceptions;
 
 
-class ResourceNotFoundException extends Exception
+class ResourceNotFoundException extends NishException
 {
 
 }

@@ -90,6 +90,10 @@ abstract class PrimitiveBeast
     }
 
     /**
+     * Memoized callables will be cached only if a cache is configured.
+     * Otherwise, it will work ordinarily.
+     * Call results will be cached with parameters. Thus, if parameters change, a new cache will be created
+     *
      * @param callable $callable
      * @param array|null $args
      * @param int $expiresAfter
@@ -100,17 +104,17 @@ abstract class PrimitiveBeast
      */
     public function memoizedCall($callable, ?array $args = null, int $expiresAfter = 3600, $cacheContainerKey = NishCacherContainer::DEFAULT_CACHER_CONTAINER_KEY)
     {
+        $callableName = CallableHelper::getCallableName($callable);
+
         if (!CallableHelper::isCallable($callable)) {
-            throw new InvalidTypeException('Invalid callable parameter: ' . CallableHelper::getCallableName($callable));
+            throw new InvalidTypeException('Invalid callable parameter: ' . $callableName);
         }
 
         if (empty($args)) $args = [];
 
-        if (!NishCacherContainer::exists()) {
+        if (!NishCacherContainer::exists() || ($cacher = NishCacherContainer::get($cacheContainerKey)) === null) {
             $result = CallableHelper::callUserFuncArray($callable, $args);
         } else {
-            $cacher = NishCacherContainer::get($cacheContainerKey);
-
             $serializedArgs = sha1(serialize($args));
 
             $key = 'methods|' . str_replace(['/','\\', '::'], ['|', '|', '.'], trim($callableName, '/\\')).'|'.$serializedArgs;

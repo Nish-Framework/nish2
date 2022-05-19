@@ -74,7 +74,7 @@ trait ModuleTrait
      * @override
      * @return ILayout | null
      */
-    public function getLayout(): ILayout
+    public function getLayout(): ?ILayout
     {
         return $this->layout;
     }

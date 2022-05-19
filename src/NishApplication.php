@@ -96,7 +96,50 @@ class NishApplication extends PrimitiveBeast
 
     private function retrieveAnnotationsForPhp7(IController $controller, string $actionMethod)
     {
+        $classReflector = new \ReflectionClass($controller);
+        $methodReflector = new \ReflectionMethod($controller, $actionMethod);
 
+        $parser = new \Doctrine\Common\Annotations\DocParser();
+        $parser->setIgnoreNotImportedAnnotations(true);
+
+        $classObjects = $parser->parse($classReflector->getDocComment());
+        $methodObjects = $parser->parse($methodReflector->getDocComment());
+
+        $this->afterActionPipe->push([$controller, 'onJustAfterAllActions'], true);
+
+        foreach ($classObjects as $obj) {
+            if ($obj instanceof OnAfterAction) {
+                foreach ($obj->getParams() as $callableArg) {
+                    if (is_array($callableArg) && is_string($callableArg[0]) && is_array($callableArg[2])) {
+                        $classObj = new $callableArg[0]($callableArg[2]);
+
+                        $callableArg = [$classObj, $callableArg[1]];
+                    }
+
+                    $this->afterActionPipe->push($callableArg, true );
+                }
+            } else {
+                $this->beforeActionPipe->push([$obj, 'run'], true);
+            }
+        }
+
+        foreach ($methodObjects as $obj) {
+            if ($obj instanceof OnAfterAction) {
+                foreach ($obj->getParams() as $callableArg) {
+                    if (is_array($callableArg) && count($callableArg) >= 3 && is_string($callableArg[0]) && is_array($callableArg[2])) {
+                        $classObj = new $callableArg[0]($callableArg[2]);
+
+                        $callableArg = [$classObj, $callableArg[1]];
+                    }
+
+                    $this->afterActionPipe->push($callableArg, true );
+                }
+            } else {
+                $this->beforeActionPipe->push([$obj, 'run'], true);
+            }
+        }
+
+        $this->beforeActionPipe->push([$controller, 'onJustBeforeAllActions'], true);
     }
 
     private function retrieveAnnotations(IController $controller, string $actionMethod)

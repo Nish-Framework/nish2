@@ -28,7 +28,8 @@
         "symfony/yaml": "5.4.3",
         "symfony/routing": "5.4.8",
         "phpmailer/phpmailer": "6.6.0",
-        "symfony/var-dumper": "v5.4.8"
+        "symfony/var-dumper": "v5.4.8",
+        "doctrine/annotations": "1.13.2"
     },
     "autoload": {
         "psr-4": {

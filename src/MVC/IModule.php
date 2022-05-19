@@ -11,5 +11,5 @@ interface IModule
     public function areViewsDisabled();
     public function disableViews();
     public function enableViews();
-    public function getLayout(): ILayout;
+    public function getLayout(): ?ILayout;
 }

@@ -390,10 +390,6 @@ class NishApplication extends PrimitiveBeast
                 throw new ResourceNotFoundException('Action or controller not found!');
             }
 
-            if (!$this->isConfigured()) {
-                $this->configure();
-            }
-
             if (is_string($controllerNameOrObject)) {
                 $controllerNameOrObject = new $controllerNameOrObject();
             }
@@ -449,6 +445,10 @@ class NishApplication extends PrimitiveBeast
     public function run()
     {
         try {
+            if (!$this->isConfigured()) {
+                $this->configure();
+            }
+
             /**
              * @var IModule
              */
@@ -466,9 +466,13 @@ class NishApplication extends PrimitiveBeast
 
             $actionParams = [];
 
+            $matchedAttributes = null;
+
             try {
                 $matchedAttributes = $routeManager->matchPath($pathInfo);
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+                throw new ResourceNotFoundException($e->getMessage(), $e->getCode(), $e);
+            }
 
             $module = null;
 
@@ -482,16 +486,18 @@ class NishApplication extends PrimitiveBeast
                     $middlewareReturn = CallableHelper::callUserFunc($route->getMiddleware());
                 }
 
-                $module = $route->getModuleClassNameOrObj();
-                $controller = $route->getAction()[0];
-                $action = $route->getAction()[1];
+                if ($middlewareReturn !== false) {
+                    $module = $route->getModuleClassNameOrObj();
+                    $controller = $route->getAction()[0];
+                    $action = $route->getAction()[1];
 
-                $actionParams[0] = $matchedAttributes;
+                    $actionParams[0] = $matchedAttributes;
 
-                unset($actionParams[0]['_route']);
+                    unset($actionParams[0]['_route']);
 
-                if ($middlewareReturn !== null) {
-                    $actionParams[1] = $middlewareReturn;
+                    if ($middlewareReturn !== null && $middlewareReturn !== true) {
+                        $actionParams[1] = $middlewareReturn;
+                    }
                 }
             }
             /** END: Match Route **/

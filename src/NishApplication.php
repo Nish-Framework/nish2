@@ -20,6 +20,7 @@ use Nish\MVC\IController;
 use Nish\MVC\IModule;
 use Nish\MVC\ModuleTrait;
 use Nish\Pipes\Pipe;
+use Nish\Routes\Route;
 use Nish\Routes\RouteManager;
 use Nish\Sessions\SessionManagerContainer;
 use Nish\Utils\CallableHelper;
@@ -38,6 +39,9 @@ class NishApplication extends PrimitiveBeast
 
     /* @var Pipe */
     private $afterActionPipe;
+
+    /* @var Route */
+    private static $currentRoute = null;
 
     public function __construct()
     {
@@ -377,6 +381,22 @@ class NishApplication extends PrimitiveBeast
     }
 
     /**
+     * @return Route|null
+     */
+    public static function getCurrentRoute()
+    {
+        return self::$currentRoute;
+    }
+
+    /**
+     * @param Route|null $currentRoute
+     */
+    public static function setCurrentRoute($currentRoute): void
+    {
+        self::$currentRoute = $currentRoute;
+    }
+
+    /**
      * @param $controllerNameOrObject
      * @param $actionName
      * @param array|null $params
@@ -479,6 +499,8 @@ class NishApplication extends PrimitiveBeast
             // call closure or throw 404 status
             if( is_array($matchedAttributes) && !empty($matchedAttributes['_route'])) {
                 $route = $routeManager->getRouteByName($matchedAttributes['_route']);
+
+                self::setCurrentRoute($route);
 
                 $middlewareReturn = null;
 

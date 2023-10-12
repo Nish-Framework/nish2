@@ -29,7 +29,8 @@
         "symfony/routing": "5.4.8",
         "phpmailer/phpmailer": "6.6.0",
         "symfony/var-dumper": "v5.4.8",
-        "doctrine/annotations": "1.13.2"
+        "doctrine/annotations": "1.13.2",
+        "ext-json": "*"
     },
     "autoload": {
         "psr-4": {

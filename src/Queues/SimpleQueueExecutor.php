@@ -6,7 +6,7 @@ namespace Nish\Queues;
 
 use Nish\Logger\Logger;
 
-class SimpleQueueListener
+class SimpleQueueExecutor
 {
     /* @var array */
     private $workers = [];
@@ -22,7 +22,7 @@ class SimpleQueueListener
     }
 
 
-    public function listen(?int $maxTaskCountTobeExecuted = null)
+    public function run(?int $maxTaskCountTobeExecuted = null)
     {
         $doExecute = true;
 
